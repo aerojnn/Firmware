@@ -268,7 +268,18 @@ void UavcanGnssBridge::process_fixx(const uavcan::ReceivedDataStructure<FixType>
 				    const float (&pos_cov)[9], const float (&vel_cov)[9],
 				    const bool valid_pos_cov, const bool valid_vel_cov)
 {
-	auto report = ::vehicle_gps_position_s();
+	// This bridge does not support redundant GNSS receivers yet.
+	if (_receiver_node_id < 0) {
+		_receiver_node_id = msg.getSrcNodeID().get();
+		PX4_INFO("GNSS receiver node ID: %d", _receiver_node_id);
+
+	} else {
+		if (_receiver_node_id != msg.getSrcNodeID().get()) {
+			return;  // This GNSS receiver is the redundant one, ignore it.
+		}
+	}
+
+	sensor_gps_s report{};
 
 	/*
 	 * FIXME HACK
@@ -400,7 +411,7 @@ void UavcanGnssBridge::process_fixx(const uavcan::ReceivedDataStructure<FixType>
 void
 UavcanGnssBridge::broadcast_from_orb(const uavcan::TimerEvent &)
 {
-	vehicle_gps_position_s orb_msg{};
+	sensor_gps_s orb_msg{};
 
 	if (!_orb_sub_gnss.update(&orb_msg)) {
 		return;
