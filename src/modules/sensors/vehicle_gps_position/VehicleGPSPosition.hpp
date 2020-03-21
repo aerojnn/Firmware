@@ -52,8 +52,12 @@
 #define BLEND_MASK_USE_VPOS_ACC     4
 
 // define max number of GPS receivers supported and 0 base instance used to access virtual 'blended' GPS solution
-#define GPS_MAX_RECEIVERS 2
-#define GPS_BLENDED_INSTANCE 2
+#define GPS_MAX_RECEIVERS 3
+#define GPS_BLENDED_INSTANCE GPS_MAX_RECEIVERS
+
+// Set the GPS timeout to 2s, after which a receiver will be ignored
+#define GPS_TIMEOUT_US 2000000
+#define GPS_TIMEOUT_S (GPS_TIMEOUT_US/1e6f)
 
 class VehicleGPSPosition : public ModuleParams, public px4::WorkItem
 {
@@ -130,7 +134,8 @@ private:
 
 	uORB::SubscriptionCallbackWorkItem _sensor_gps_sub[GPS_MAX_RECEIVERS] {	/**< sensor data subscription */
 		{this, ORB_ID(sensor_gps), 0},
-		{this, ORB_ID(sensor_gps), 1}
+		{this, ORB_ID(sensor_gps), 1},
+		{this, ORB_ID(sensor_gps), 2}
 	};
 
 	DEFINE_PARAMETERS(
