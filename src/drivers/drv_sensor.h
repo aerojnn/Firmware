@@ -53,7 +53,7 @@
  */
 
 #define DRV_MAG_DEVTYPE_HMC5883  0x01
-#define DRV_MAG_DEVTYPE_LSM303D  0x02
+#define DRV_MAG_DEVTYPE_LSM303D_LEGACY  0x02
 #define DRV_MAG_DEVTYPE_MAGSIM   0x03
 #define DRV_MAG_DEVTYPE_AK8963   0x04
 #define DRV_MAG_DEVTYPE_LIS3MDL  0x05
@@ -61,23 +61,24 @@
 #define DRV_MAG_DEVTYPE_RM3100   0x07
 #define DRV_MAG_DEVTYPE_QMC5883  0x08
 #define DRV_MAG_DEVTYPE_AK09916  0x09
-#define DRV_IMU_DEVTYPE_ICM20948 0x0A
-#define DRV_MAG_DEVTYPE_IST8308  0x0B
 
-#define DRV_ACC_DEVTYPE_LSM303D  0x11
+#define DRV_MAG_DEVTYPE_IST8308  0x0B
+#define DRV_MAG_DEVTYPE_LIS2MDL  0x0C
+
+#define DRV_IMU_DEVTYPE_LSM303D  0x11
 #define DRV_ACC_DEVTYPE_BMA180   0x12
 #define DRV_ACC_DEVTYPE_MPU6000_LEGACY  0x13
-#define DRV_ACC_DEVTYPE_ACCELSIM 0x14
+#define DRV_IMU_DEVTYPE_SIM 0x14
 #define DRV_ACC_DEVTYPE_MPU9250_LEGACY  0x16
-#define DRV_ACC_DEVTYPE_BMI160   0x17
+#define DRV_IMU_DEVTYPE_BMI160   0x17
 
 #define DRV_IMU_DEVTYPE_MPU6000  0x21
 #define DRV_GYR_DEVTYPE_L3GD20   0x22
-#define DRV_GYR_DEVTYPE_GYROSIM  0x23
 #define DRV_IMU_DEVTYPE_MPU9250  0x24
-#define DRV_GYR_DEVTYPE_BMI160   0x25
+#define DRV_IMU_DEVTYPE_ICM20649 0x25
 #define DRV_IMU_DEVTYPE_ICM42688P 0x26
 #define DRV_IMU_DEVTYPE_ICM40609D 0x27
+#define DRV_IMU_DEVTYPE_ICM20948 0x28
 
 #define DRV_RNG_DEVTYPE_MB12XX   0x31
 #define DRV_RNG_DEVTYPE_LL40LS   0x32
@@ -106,6 +107,7 @@
 #define DRV_DIFF_PRESS_DEVTYPE_SDP31    0x49
 #define DRV_DIFF_PRESS_DEVTYPE_SDP32    0x4A
 #define DRV_DIFF_PRESS_DEVTYPE_SDP33    0x4B
+#define DRV_BARO_DEVTYPE_LPS33HW        0x4C
 
 #define DRV_BARO_DEVTYPE_MPL3115A2	0x51
 #define DRV_ACC_DEVTYPE_FXOS8701C	0x52
@@ -137,7 +139,7 @@
 #define DRV_DIST_DEVTYPE_SF1XX        0x73
 #define DRV_DIST_DEVTYPE_SRF02        0x74
 #define DRV_DIST_DEVTYPE_TERARANGER   0x75
-#define DRV_DIST_DEVTYPE_VL53LXX      0x76
+#define DRV_DIST_DEVTYPE_VL53L0X      0x76
 #define DRV_POWER_DEVTYPE_INA226      0x77
 #define DRV_POWER_DEVTYPE_VOXLPM      0x78
 #define DRV_LED_DEVTYPE_BLINKM        0x79
@@ -160,29 +162,7 @@
 #define DRV_MAG_DEVTYPE_UAVCAN	0x88
 #define DRV_DIST_DEVTYPE_UAVCAN	0x89
 
+
 #define DRV_DEVTYPE_UNUSED		0xff
-
-/*
- * ioctl() definitions
- *
- * Note that a driver may not implement all of these operations, but
- * if the operation is implemented it should conform to this API.
- */
-
-#define _SENSORIOCBASE		(0x2000)
-#define _SENSORIOC(_n)		(_PX4_IOC(_SENSORIOCBASE, _n))
-
-/**
- * Set the driver polling rate to (arg) Hz, or one of the SENSOR_POLLRATE
- * constants
- */
-#define SENSORIOCSPOLLRATE	_SENSORIOC(0)
-
-#define SENSOR_POLLRATE_DEFAULT		1000003	/**< poll at driver normal rate */
-
-/**
- * Reset the sensor to its default configuration
- */
-#define SENSORIOCRESET		_SENSORIOC(4)
 
 #endif /* _DRV_SENSOR_H */

@@ -6,6 +6,7 @@ constexpr uint64_t FlightTask::_timeout;
 // First index of empty_setpoint corresponds to time-stamp and requires a finite number.
 const vehicle_local_position_setpoint_s FlightTask::empty_setpoint = {0, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, {NAN, NAN, NAN}, {NAN, NAN, NAN}, {NAN, NAN, NAN}, {}};
 
+const ekf_reset_counters_s FlightTask::zero_reset_counters = {};
 const vehicle_constraints_s FlightTask::empty_constraints = {0, NAN, NAN, NAN, NAN, NAN, NAN, NAN, false, {}};
 const landing_gear_s FlightTask::empty_landing_gear_default_keep = {0, landing_gear_s::GEAR_KEEP, {}};
 
@@ -13,7 +14,6 @@ bool FlightTask::activate(vehicle_local_position_setpoint_s last_setpoint)
 {
 	_resetSetpoints();
 	_setDefaultConstraints();
-	_initEkfResetCounters();
 	_time_stamp_activate = hrt_absolute_time();
 	_gear = empty_landing_gear_default_keep;
 	return true;
@@ -37,17 +37,13 @@ bool FlightTask::updateInitialize()
 
 	_evaluateVehicleLocalPosition();
 	_evaluateDistanceToGround();
-	_checkEkfResetCounters();
 	return true;
 }
 
-void FlightTask::_initEkfResetCounters()
+bool FlightTask::update()
 {
-	_reset_counters.xy = _sub_vehicle_local_position.get().xy_reset_counter;
-	_reset_counters.vxy = _sub_vehicle_local_position.get().vxy_reset_counter;
-	_reset_counters.z = _sub_vehicle_local_position.get().z_reset_counter;
-	_reset_counters.vz = _sub_vehicle_local_position.get().vz_reset_counter;
-	_reset_counters.quat = _sub_attitude.get().quat_reset_counter;
+	_checkEkfResetCounters();
+	return true;
 }
 
 void FlightTask::_checkEkfResetCounters()
@@ -96,9 +92,11 @@ const vehicle_local_position_setpoint_s FlightTask::getPositionSetpoint()
 
 	_acceleration_setpoint.copyTo(vehicle_local_position_setpoint.acceleration);
 	_jerk_setpoint.copyTo(vehicle_local_position_setpoint.jerk);
-	_thrust_setpoint.copyTo(vehicle_local_position_setpoint.thrust);
 	vehicle_local_position_setpoint.yaw = _yaw_setpoint;
 	vehicle_local_position_setpoint.yawspeed = _yawspeed_setpoint;
+
+	// deprecated, only kept for output logging
+	matrix::Vector3f(NAN, NAN, NAN).copyTo(vehicle_local_position_setpoint.thrust);
 
 	return vehicle_local_position_setpoint;
 }
@@ -109,7 +107,6 @@ void FlightTask::_resetSetpoints()
 	_velocity_setpoint.setNaN();
 	_acceleration_setpoint.setNaN();
 	_jerk_setpoint.setNaN();
-	_thrust_setpoint.setNaN();
 	_yaw_setpoint = _yawspeed_setpoint = NAN;
 }
 
@@ -180,7 +177,7 @@ void FlightTask::_setDefaultConstraints()
 	_constraints.speed_xy = _param_mpc_xy_vel_max.get();
 	_constraints.speed_up = _param_mpc_z_vel_max_up.get();
 	_constraints.speed_down = _param_mpc_z_vel_max_dn.get();
-	_constraints.tilt = math::radians(_param_mpc_tiltmax_air.get());
+	_constraints.tilt = NAN;
 	_constraints.min_distance_to_ground = NAN;
 	_constraints.max_distance_to_ground = NAN;
 	_constraints.want_takeoff = false;

@@ -58,6 +58,16 @@ except ImportError as e:
     print("")
     sys.exit(1)
 
+try:
+    from packaging import version
+except ImportError as e:
+    print("Failed to import packaging: " + str(e))
+    print("")
+    print("You may need to install it using:")
+    print("    pip3 install --user packaging")
+    print("")
+    sys.exit(1)
+
 
 def check_rtps_id_uniqueness(classifier):
     """
@@ -227,23 +237,40 @@ if fastrtpsgen_include is not None and fastrtpsgen_include != '':
         os.path.abspath(
             args.fastrtpsgen_include) + " "
 
+# get FastRTPSGen version
+# .. note:: since Fast-RTPS 1.8.0 release, FastRTPSGen is a separated repository
+# and not included in the Fast-RTPS project.
+# The starting version since this separation is 1.0.0, which follows its own
+# versioning
+fastrtpsgen_version = version.Version("1.0.0")
+if(os.path.exists(fastrtpsgen_path)):
+    try:
+        fastrtpsgen_version_out = subprocess.check_output(
+            [fastrtpsgen_path, "-version"]).decode("utf-8").strip()[-5:]
+    except OSError:
+        raise
+
+    try:
+        fastrtpsgen_version = version.parse(fastrtpsgen_version_out)
+    except version.InvalidVersion:
+        raise Exception(
+            "'fastrtpsgen -version' returned None or an invalid version")
+else:
+    raise Exception(
+        "FastRTPSGen not found. Specify the location of fastrtpsgen with the -f flag")
+
 # get FastRTPS version
 fastrtps_version = subprocess.check_output(
     "ldconfig -v | grep libfastrtps", shell=True).decode("utf-8").strip().split('so.')[-1]
 
 # get ROS 2 version, if exists
-ros2_distro = ""
-try:
-    rosversion_out = subprocess.check_output(["rosversion", "-d"])
-    rosversion_out = rosversion_out.rstrip().decode('utf-8')
-    if rosversion_out not in ["<unknown>", "kinetic", "lunar", "melodic"]:
-        ros2_distro = rosversion_out
-except OSError as e:
-    if e.errno == errno.ENOENT:
-        if args.ros2_distro != None:
-            ros2_distro = args.ros2_distro
-    else:
-        raise
+ros2_distro = ''
+ros_version = os.environ.get('ROS_VERSION')
+if ros_version == '2' :
+    if args.ros2_distro != '':
+        ros2_distro = args.ros2_distro
+    else :
+        ros2_distro = os.environ.get('ROS_DISTRO')
 
 # If nothing specified it's generated both
 if agent == False and client == False:
@@ -386,10 +413,18 @@ def generate_agent(out_dir):
     os.chdir(os.path.join(out_dir, "fastrtpsgen"))
     if not glob.glob(os.path.join(idl_dir, "*.idl")):
         raise Exception("No IDL files found in %s" % idl_dir)
+
+    # If it is generating the bridge code for interfacing with ROS2, then set
+    # the '-typeros2' option in fastrtpsgen.
+    # .. note:: This is only available in FastRTPSGen 1.0.4 and above
+    gen_ros2_typename = ""
+    if ros2_distro and ros2_distro in ['dashing', 'eloquent', 'foxy'] and fastrtpsgen_version >= version.Version("1.0.4"):
+        gen_ros2_typename = "-typeros2 "
+
     for idl_file in glob.glob(os.path.join(idl_dir, "*.idl")):
         try:
             ret = subprocess.check_call(fastrtpsgen_path + " -d " + out_dir +
-                                        "/fastrtpsgen -example x64Linux2.6gcc " + fastrtpsgen_include + idl_file, shell=True)
+                                        "/fastrtpsgen -example x64Linux2.6gcc " + gen_ros2_typename + fastrtpsgen_include + idl_file, shell=True)
         except OSError:
             raise
 

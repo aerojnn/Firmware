@@ -39,34 +39,35 @@
 #include <drivers/drv_sensor.h>
 #include <lib/parameters/param.h>
 
-bool param_modify_on_import(const char *name, bson_type_t type, void *value)
+bool param_modify_on_import(bson_node_t node)
 {
+	// migrate MPC_*_VEL_* -> MPC_*_VEL_*_ACC (2020-04-27). This can be removed after the next release (current release=1.10)
+	if (node->type == BSON_DOUBLE) {
+		param_migrate_velocity_gain(node, "MPC_XY_VEL_P");
+		param_migrate_velocity_gain(node, "MPC_XY_VEL_I");
+		param_migrate_velocity_gain(node, "MPC_XY_VEL_D");
+		param_migrate_velocity_gain(node, "MPC_Z_VEL_P");
+		param_migrate_velocity_gain(node, "MPC_Z_VEL_I");
+		param_migrate_velocity_gain(node, "MPC_Z_VEL_D");
+	}
 
 	// migrate MC_DTERM_CUTOFF -> IMU_DGYRO_CUTOFF (2020-03-12). This can be removed after the next release (current release=1.10)
-	if (type == BSON_DOUBLE) {
-		if (strcmp("MC_DTERM_CUTOFF", name) == 0) {
-			param_t h = param_find("IMU_DGYRO_CUTOFF");
-
-			if (h == PX4_OK) {
-				float fvalue = *(float *)value;
-				PX4_INFO("param migrating MC_DTERM_CUTOFF (removed) -> IMU_DGYRO_CUTOFF: value=%.3f", (double)fvalue);
-				param_set_no_notification(h, value);
-				return true;
-			}
-
-			return false;
+	if (node->type == BSON_DOUBLE) {
+		if (strcmp("MC_DTERM_CUTOFF", node->name) == 0) {
+			strcpy(node->name, "IMU_DGYRO_CUTOFF");
+			PX4_INFO("param migrating MC_DTERM_CUTOFF (removed) -> IMU_DGYRO_CUTOFF: value=%.3f", node->d);
+			return true;
 		}
 	}
 
 
-
 	// translate (SPI) calibration ID parameters. This can be removed after the next release (current release=1.10)
 
-	if (type != BSON_INT32) {
+	if (node->type != BSON_INT32) {
 		return false;
 	}
 
-	int32_t *ivalue = (int32_t *)value;
+	int64_t *ivalue = &node->i;
 
 	const char *cal_id_params[] = {
 		"CAL_ACC0_ID",
@@ -94,7 +95,7 @@ bool param_modify_on_import(const char *name, bson_type_t type, void *value)
 	bool found = false;
 
 	for (int i = 0; i < sizeof(cal_id_params) / sizeof(cal_id_params[0]); ++i) {
-		if (strcmp(cal_id_params[i], name) == 0) {
+		if (strcmp(cal_id_params[i], node->name) == 0) {
 			found = true;
 			break;
 		}
@@ -109,9 +110,13 @@ bool param_modify_on_import(const char *name, bson_type_t type, void *value)
 	device_id.devid = (uint32_t) * ivalue;
 
 	// SPI board config translation
+#ifdef __PX4_NUTTX // only on NuttX the address is 0
+
 	if (device_id.devid_s.bus_type == device::Device::DeviceBusType_SPI) {
 		device_id.devid_s.address = 0;
 	}
+
+#endif
 
 	// deprecated ACC -> IMU translations
 	if (device_id.devid_s.devtype == DRV_ACC_DEVTYPE_MPU6000_LEGACY) {
@@ -138,13 +143,26 @@ bool param_modify_on_import(const char *name, bson_type_t type, void *value)
 		device_id.devid_s.devtype = DRV_IMU_DEVTYPE_ICM20689;
 	}
 
+	if (device_id.devid_s.devtype == DRV_MAG_DEVTYPE_LSM303D_LEGACY) {
+		device_id.devid_s.devtype = DRV_IMU_DEVTYPE_LSM303D;
+	}
+
 	int32_t new_value = (int32_t)device_id.devid;
 
 	if (new_value != *ivalue) {
-		PX4_INFO("param modify: %s, value=0x%x (old=0x%x)", name, new_value, *ivalue);
+		PX4_INFO("param modify: %s, value=0x%x (old=0x%x)", node->name, new_value, (int32_t)*ivalue);
 		*ivalue = new_value;
 		return true;
 	}
 
 	return false;
+}
+
+void param_migrate_velocity_gain(bson_node_t node, const char *parameter_name)
+{
+	if (strcmp(parameter_name, node->name) == 0) {
+		strcat(node->name, "_ACC");
+		node->d *= 20.0;
+		PX4_INFO("migrating %s (removed) -> %s: new value=%.3f", parameter_name, node->name, node->d);
+	}
 }

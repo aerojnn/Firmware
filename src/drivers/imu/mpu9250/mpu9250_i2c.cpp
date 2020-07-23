@@ -43,7 +43,7 @@
 
 #ifdef USE_I2C
 
-device::Device *MPU9250_I2C_interface(int bus, uint32_t address);
+device::Device *MPU9250_I2C_interface(int bus, uint32_t address, int bus_frequency);
 
 class MPU9250_I2C : public device::I2C
 {
@@ -55,7 +55,7 @@ public:
 	int	write(unsigned address, void *data, unsigned count) override;
 
 protected:
-	virtual int	probe();
+	virtual int	probe() override;
 
 private:
 
@@ -68,9 +68,8 @@ MPU9250_I2C_interface(int bus, uint32_t address, int bus_frequency)
 }
 
 MPU9250_I2C::MPU9250_I2C(int bus, uint32_t address, int bus_frequency) :
-	I2C("MPU9250_I2C", nullptr, bus, address, bus_frequency)
+	I2C(DRV_IMU_DEVTYPE_MPU9250, MODULE_NAME, bus, address, bus_frequency)
 {
-	set_device_type(DRV_IMU_DEVTYPE_MPU9250);
 }
 
 int
@@ -98,7 +97,7 @@ MPU9250_I2C::read(unsigned reg_speed, void *data, unsigned count)
 	 */
 	uint32_t offset = count < sizeof(MPUReport) ? 0 : offsetof(MPUReport, ACCEL_XOUT_H);
 	uint8_t cmd = MPU9250_REG(reg_speed);
-	return transfer(&cmd, 1, &((uint8_t *)data)[offset], count);
+	return transfer(&cmd, 1, &((uint8_t *)data)[offset], count - offset);
 }
 
 int

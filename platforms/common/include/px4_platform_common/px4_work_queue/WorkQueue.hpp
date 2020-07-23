@@ -76,7 +76,7 @@ private:
 
 	bool should_exit() const { return _should_exit.load(); }
 
-	inline void signal_worker_thread();
+	inline void SignalWorkerThread();
 
 #ifdef __PX4_NUTTX
 	// In NuttX work can be enqueued from an ISR
@@ -84,7 +84,8 @@ private:
 	void work_unlock() { leave_critical_section(_flags); }
 	irqstate_t _flags;
 #else
-	void work_lock() { px4_sem_wait(&_qlock); }
+	// loop as the wait may be interrupted by a signal
+	void work_lock() { do {} while (px4_sem_wait(&_qlock) != 0); }
 	void work_unlock() { px4_sem_post(&_qlock); }
 	px4_sem_t _qlock;
 #endif

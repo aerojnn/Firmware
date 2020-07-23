@@ -33,6 +33,7 @@
 
 #include "LeddarOne.hpp"
 
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -42,11 +43,9 @@ LeddarOne::LeddarOne(const char *serial_port, uint8_t device_orientation):
 {
 	_serial_port = strdup(serial_port);
 
-	_px4_rangefinder.set_device_type(distance_sensor_s::MAV_DISTANCE_SENSOR_LASER);
 	_px4_rangefinder.set_max_distance(LEDDAR_ONE_MAX_DISTANCE);
 	_px4_rangefinder.set_min_distance(LEDDAR_ONE_MIN_DISTANCE);
 	_px4_rangefinder.set_fov(LEDDAR_ONE_FIELD_OF_VIEW);
-	_px4_rangefinder.set_orientation(device_orientation);
 }
 
 LeddarOne::~LeddarOne()
@@ -268,8 +267,6 @@ LeddarOne::print_info()
 {
 	perf_print_counter(_comms_error);
 	perf_print_counter(_sample_perf);
-
-	_px4_rangefinder.print_status();
 }
 
 void

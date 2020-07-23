@@ -44,13 +44,13 @@
  * Address 0x6B - measures 5VDC ouptut voltage and current
  */
 VOXLPM::VOXLPM(I2CSPIBusOption bus_option, const int bus, int bus_frequency, VOXLPM_CH_TYPE ch_type) :
-	I2C("voxlpm", nullptr, bus, (ch_type == VOXLPM_CH_TYPE_VBATT) ? VOXLPM_LTC2946_ADDR_VBATT : VOXLPM_LTC2946_ADDR_P5VD,
-	    bus_frequency),
+	I2C(DRV_POWER_DEVTYPE_VOXLPM, MODULE_NAME, bus,
+	    (ch_type == VOXLPM_CH_TYPE_VBATT) ? VOXLPM_LTC2946_ADDR_VBATT : VOXLPM_LTC2946_ADDR_P5VD, bus_frequency),
 	ModuleParams(nullptr),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_sample_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": sample")),
 	_ch_type(ch_type),
-	_battery(1, this)
+	_battery(1, this, _meas_interval_us)
 {
 	if (_ch_type == VOXLPM_CH_TYPE_VBATT) {
 		_rsense = VOXLPM_RSENSE_VBATT;
@@ -100,13 +100,13 @@ VOXLPM::print_status()
 	printf("  - voltage: %9.2f VDC \n", (double)_voltage);
 	printf("  - current: %9.2f ADC \n", (double)_amperage);
 	printf("  - rsense: %9.6f ohm \n", (double)_rsense);
-	printf("  - meas interval:  %u us \n", _meas_interval);
+	printf("  - meas interval:  %u us \n", _meas_interval_us);
 }
 
 void
 VOXLPM::start()
 {
-	ScheduleOnInterval(_meas_interval, 1000);
+	ScheduleOnInterval(_meas_interval_us, 1000);
 }
 
 void
@@ -149,7 +149,8 @@ VOXLPM::measure()
 
 		switch (_ch_type) {
 		case VOXLPM_CH_TYPE_VBATT: {
-				_battery.updateBatteryStatus(tnow, _voltage, _amperage, true, true, 0, 0, true);
+				_battery.updateBatteryStatus(tnow, _voltage, _amperage, true,
+							     battery_status_s::BATTERY_SOURCE_POWER_MODULE, 0, 0);
 			}
 
 		// fallthrough
@@ -170,7 +171,8 @@ VOXLPM::measure()
 	} else {
 		switch (_ch_type) {
 		case VOXLPM_CH_TYPE_VBATT: {
-				_battery.updateBatteryStatus(tnow, 0.0, 0.0, true, true, 0, 0, true);
+				_battery.updateBatteryStatus(tnow, 0.0, 0.0, true,
+							     battery_status_s::BATTERY_SOURCE_POWER_MODULE, 0, 0);
 			}
 			break;
 

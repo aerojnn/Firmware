@@ -38,11 +38,13 @@
 #include "sensor_bridge.hpp"
 #include <cassert>
 
-#include "gnss.hpp"
-#include "mag.hpp"
+#include "differential_pressure.hpp"
 #include "baro.hpp"
-#include "flow.hpp"
 #include "battery.hpp"
+#include "airspeed.hpp"
+#include "gnss.hpp"
+#include "flow.hpp"
+#include "mag.hpp"
 
 /*
  * IUavcanSensorBridge
@@ -54,6 +56,8 @@ void IUavcanSensorBridge::make_all(uavcan::INode &node, List<IUavcanSensorBridge
 	list.add(new UavcanGnssBridge(node));
 	list.add(new UavcanFlowBridge(node));
 	list.add(new UavcanBatteryBridge(node));
+	list.add(new UavcanAirspeedBridge(node));
+	list.add(new UavcanDifferentialPressureBridge(node));
 }
 
 /*
@@ -185,8 +189,13 @@ uavcan_bridge::Channel *UavcanCDevSensorBridgeBase::get_channel_for_node(int nod
 		int ret = init_driver(channel);
 
 		if (ret != PX4_OK) {
+			// Driver initialization failed - probably out of channels.  Return nullptr so
+			// the callback exits gracefully, and clear the assigned node_id for the channel
+			// so future callbacks exit immediately.
 			DEVICE_LOG("INIT ERROR node %d errno %d", channel->node_id, ret);
-			return channel;
+			channel->node_id = -1;
+			_out_of_channels = true;
+			return nullptr;
 		}
 
 		DEVICE_LOG("channel %d class instance %d ok", channel->node_id, channel->class_instance);

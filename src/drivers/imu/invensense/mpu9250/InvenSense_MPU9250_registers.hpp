@@ -61,8 +61,8 @@ static constexpr uint8_t DIR_READ = 0x80;
 
 static constexpr uint8_t WHOAMI = 0x71;
 
-static constexpr float TEMPERATURE_SENSITIVITY = 326.8f; // LSB/C
-static constexpr float ROOM_TEMPERATURE_OFFSET = 25.f; // C
+static constexpr float TEMPERATURE_SENSITIVITY = 333.87f; // LSB/C
+static constexpr float TEMPERATURE_OFFSET = 21.f; // C
 
 enum class Register : uint8_t {
 	CONFIG             = 0x1A,
@@ -78,7 +78,6 @@ enum class Register : uint8_t {
 
 	I2C_SLV4_CTRL      = 0x34,
 
-	I2C_MST_STATUS     = 0x36,
 	INT_PIN_CFG        = 0x37,
 	INT_ENABLE         = 0x38,
 

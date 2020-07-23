@@ -33,6 +33,7 @@
 
 #include "SF0X.hpp"
 
+#include <fcntl.h>
 #include <termios.h>
 
 /* Configuration Constants */
@@ -49,8 +50,6 @@ SF0X::SF0X(const char *port, uint8_t rotation) :
 
 	/* enforce null termination */
 	_port[sizeof(_port) - 1] = '\0';
-
-	_px4_rangefinder.set_device_type(distance_sensor_s::MAV_DISTANCE_SENSOR_LASER);
 }
 
 SF0X::~SF0X()
@@ -298,6 +297,4 @@ void SF0X::print_info()
 {
 	perf_print_counter(_sample_perf);
 	perf_print_counter(_comms_errors);
-
-	_px4_rangefinder.print_status();
 }

@@ -90,8 +90,12 @@ bool @(topic)_Publisher::init()
 {
     // Create RTPSParticipant
     ParticipantAttributes PParam;
+@[if version.parse(fastrtps_version) < version.parse('2.0')]@
     PParam.rtps.builtin.domainId = 0;
-@[if version.parse(fastrtps_version[:3]) <= version.parse('1.8')]@
+@[else]@
+    PParam.domainId = 0;
+@[end if]@
+@[if version.parse(fastrtps_version) <= version.parse('1.8')]@
     PParam.rtps.builtin.leaseDuration = c_TimeInfinite;
 @[else]@
     PParam.rtps.builtin.discovery_config.leaseDuration = c_TimeInfinite;
@@ -100,13 +104,6 @@ bool @(topic)_Publisher::init()
     mp_participant = Domain::createParticipant(PParam);
     if(mp_participant == nullptr)
         return false;
-
-@[if ros2_distro and (ros2_distro == "dashing" or ros2_distro == "eloquent")]@
-    // Type name should match the expected type name on ROS2
-    // Note: the change is being done here since the 'fastrtpsgen' example
-    // generator does not allow to change the type naming on the template
-    @(topic)DataType.setName("@(package)::msg::dds_::@(topic)_");
-@[end if]@
 
     // Register the type
     Domain::registerType(mp_participant, static_cast<TopicDataType*>(&@(topic)DataType));
@@ -123,7 +120,7 @@ bool @(topic)_Publisher::init()
     Wparam.topic.topicName = "rt/@(topic)_PubSubTopic";
 @[    end if]@
 @[else]@
-    Wparam.topic.topicName = "@(topic)_PubSubTopic";
+    Wparam.topic.topicName = "@(topic)PubSubTopic";
 @[end if]@
     mp_publisher = Domain::createPublisher(mp_participant, Wparam, static_cast<PublisherListener*>(&m_listener));
     if(mp_publisher == nullptr)

@@ -103,6 +103,9 @@ private:
 	uORB::Subscription	_parameter_update_sub{ORB_ID(parameter_update)};				/**< notification of parameter updates */
 	uORB::Subscription	_adc_report_sub{ORB_ID(adc_report)};
 
+	static constexpr uint32_t SAMPLE_FREQUENCY_HZ = 100;
+	static constexpr uint32_t SAMPLE_INTERVAL_US  = 1_s / SAMPLE_FREQUENCY_HZ;
+
 	AnalogBattery _battery1;
 
 #if BOARD_NUMBER_BRICKS > 1
@@ -135,9 +138,9 @@ private:
 BatteryStatus::BatteryStatus() :
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default),
-	_battery1(1, this),
+	_battery1(1, this, SAMPLE_INTERVAL_US),
 #if BOARD_NUMBER_BRICKS > 1
-	_battery2(2, this),
+	_battery2(2, this, SAMPLE_INTERVAL_US),
 #endif
 	_loop_perf(perf_alloc(PC_ELAPSED, MODULE_NAME))
 {
@@ -176,11 +179,6 @@ BatteryStatus::adc_poll()
 	float bat_current_adc_readings[BOARD_NUMBER_BRICKS] {};
 	float bat_voltage_adc_readings[BOARD_NUMBER_BRICKS] {};
 
-	/* Based on the valid_chan, used to indicate the selected the lowest index
-	 * (highest priority) supply that is the source for the VDD_5V_IN
-	 * When < 0 none selected
-	 */
-
 	int selected_source = -1;
 
 	adc_report_s adc_report;
@@ -200,7 +198,6 @@ BatteryStatus::adc_poll()
 					 * VDD_5V_IN
 					 */
 					selected_source = b;
-
 				}
 
 				/* look for specific channels and process the raw voltage to measurement data */
@@ -221,19 +218,18 @@ BatteryStatus::adc_poll()
 		}
 
 		for (int b = 0; b < BOARD_NUMBER_BRICKS; b++) {
-			if (_analogBatteries[b]->source() == 0) {
-				actuator_controls_s ctrl{};
-				_actuator_ctrl_0_sub.copy(&ctrl);
 
-				_analogBatteries[b]->updateBatteryStatusADC(
-					hrt_absolute_time(),
-					bat_voltage_adc_readings[b],
-					bat_current_adc_readings[b],
-					selected_source == b,
-					b,
-					ctrl.control[actuator_controls_s::INDEX_THROTTLE]
-				);
-			}
+			actuator_controls_s ctrl{};
+			_actuator_ctrl_0_sub.copy(&ctrl);
+
+			_analogBatteries[b]->updateBatteryStatusADC(
+				hrt_absolute_time(),
+				bat_voltage_adc_readings[b],
+				bat_current_adc_readings[b],
+				battery_status_s::BATTERY_SOURCE_POWER_MODULE,
+				b,
+				ctrl.control[actuator_controls_s::INDEX_THROTTLE]
+			);
 		}
 	}
 }
@@ -284,7 +280,7 @@ BatteryStatus::task_spawn(int argc, char *argv[])
 bool
 BatteryStatus::init()
 {
-	ScheduleOnInterval(10_ms); // 100 Hz
+	ScheduleOnInterval(SAMPLE_INTERVAL_US);
 
 	return true;
 }

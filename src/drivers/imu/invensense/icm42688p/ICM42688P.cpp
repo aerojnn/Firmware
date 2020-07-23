@@ -42,23 +42,17 @@ static constexpr int16_t combine(uint8_t msb, uint8_t lsb)
 
 ICM42688P::ICM42688P(I2CSPIBusOption bus_option, int bus, uint32_t device, enum Rotation rotation, int bus_frequency,
 		     spi_mode_e spi_mode, spi_drdy_gpio_t drdy_gpio) :
-	SPI(MODULE_NAME, nullptr, bus, device, spi_mode, bus_frequency),
+	SPI(DRV_IMU_DEVTYPE_ICM42688P, MODULE_NAME, bus, device, spi_mode, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_drdy_gpio(drdy_gpio),
 	_px4_accel(get_device_id(), ORB_PRIO_HIGH, rotation),
 	_px4_gyro(get_device_id(), ORB_PRIO_HIGH, rotation)
 {
-	set_device_type(DRV_IMU_DEVTYPE_ICM42688P);
-
-	_px4_accel.set_device_type(DRV_IMU_DEVTYPE_ICM42688P);
-	_px4_gyro.set_device_type(DRV_IMU_DEVTYPE_ICM42688P);
-
 	ConfigureSampleRate(_px4_gyro.get_max_rate_hz());
 }
 
 ICM42688P::~ICM42688P()
 {
-	perf_free(_transfer_perf);
 	perf_free(_bad_register_perf);
 	perf_free(_bad_transfer_perf);
 	perf_free(_fifo_empty_perf);
@@ -99,7 +93,6 @@ void ICM42688P::print_status()
 	PX4_INFO("FIFO empty interval: %d us (%.3f Hz)", _fifo_empty_interval_us,
 		 static_cast<double>(1000000 / _fifo_empty_interval_us));
 
-	perf_print_counter(_transfer_perf);
 	perf_print_counter(_bad_register_perf);
 	perf_print_counter(_bad_transfer_perf);
 	perf_print_counter(_fifo_empty_perf);
@@ -107,8 +100,6 @@ void ICM42688P::print_status()
 	perf_print_counter(_fifo_reset_perf);
 	perf_print_counter(_drdy_interval_perf);
 
-	_px4_accel.print_status();
-	_px4_gyro.print_status();
 }
 
 int ICM42688P::probe()
@@ -284,38 +275,38 @@ void ICM42688P::ConfigureGyro()
 {
 	const uint8_t GYRO_FS_SEL = RegisterRead(Register::BANK_0::GYRO_CONFIG0) & (Bit7 | Bit6 | Bit5); // 7:5 GYRO_FS_SEL
 
+	float range_dps = 0.f;
+
 	switch (GYRO_FS_SEL) {
 	case GYRO_FS_SEL_125_DPS:
-		_px4_gyro.set_scale(math::radians(1.f / 262.f));
-		_px4_gyro.set_range(math::radians(125.f));
+		range_dps = 125.f;
 		break;
 
 	case GYRO_FS_SEL_250_DPS:
-		_px4_gyro.set_scale(math::radians(1.f / 131.f));
-		_px4_gyro.set_range(math::radians(250.f));
+		range_dps = 250.f;
 		break;
 
 	case GYRO_FS_SEL_500_DPS:
-		_px4_gyro.set_scale(math::radians(1.f / 65.5f));
-		_px4_gyro.set_range(math::radians(500.f));
+		range_dps = 500.f;
 		break;
 
 	case GYRO_FS_SEL_1000_DPS:
-		_px4_gyro.set_scale(math::radians(1.f / 32.8f));
-		_px4_gyro.set_range(math::radians(1000.f));
+		range_dps = 1000.f;
 		break;
 
 	case GYRO_FS_SEL_2000_DPS:
-		_px4_gyro.set_scale(math::radians(1.f / 16.4f));
-		_px4_gyro.set_range(math::radians(2000.f));
+		range_dps = 2000.f;
 		break;
 	}
+
+	_px4_gyro.set_scale(math::radians(range_dps / 32768.f));
+	_px4_gyro.set_range(math::radians(range_dps));
 }
 
 void ICM42688P::ConfigureSampleRate(int sample_rate)
 {
 	if (sample_rate == 0) {
-		sample_rate = 1000; // default to 1 kHz
+		sample_rate = 800; // default to 800 Hz
 	}
 
 	// round down to nearest FIFO sample dt * SAMPLES_PER_TRANSFER
@@ -328,9 +319,6 @@ void ICM42688P::ConfigureSampleRate(int sample_rate)
 	_fifo_empty_interval_us = _fifo_gyro_samples * (1e6f / GYRO_RATE);
 
 	_fifo_accel_samples = math::min(_fifo_empty_interval_us / (1e6f / ACCEL_RATE), (float)FIFO_MAX_SAMPLES);
-
-	_px4_accel.set_update_rate(1e6f / _fifo_empty_interval_us);
-	_px4_gyro.set_update_rate(1e6f / _fifo_empty_interval_us);
 
 	ConfigureFIFOWatermark(_fifo_gyro_samples);
 }
@@ -476,17 +464,14 @@ uint16_t ICM42688P::FIFOReadCount()
 
 bool ICM42688P::FIFORead(const hrt_abstime &timestamp_sample, uint16_t samples)
 {
-	perf_begin(_transfer_perf);
 	FIFOTransferBuffer buffer{};
 	const size_t transfer_size = math::min(samples * sizeof(FIFO::DATA) + 4, FIFO::SIZE);
 
 	if (transfer((uint8_t *)&buffer, (uint8_t *)&buffer, transfer_size) != PX4_OK) {
-		perf_end(_transfer_perf);
 		perf_count(_bad_transfer_perf);
 		return false;
 	}
 
-	perf_end(_transfer_perf);
 
 	if (buffer.INT_STATUS & INT_STATUS_BIT::FIFO_FULL_INT) {
 		perf_count(_fifo_overflow_perf);
@@ -562,7 +547,7 @@ void ICM42688P::FIFOReset()
 void ICM42688P::ProcessAccel(const hrt_abstime &timestamp_sample, const FIFOTransferBuffer &buffer,
 			     const uint8_t samples)
 {
-	PX4Accelerometer::FIFOSample accel;
+	sensor_accel_fifo_s accel{};
 	accel.timestamp_sample = timestamp_sample;
 	accel.dt = _fifo_empty_interval_us / _fifo_accel_samples;
 
@@ -590,7 +575,7 @@ void ICM42688P::ProcessAccel(const hrt_abstime &timestamp_sample, const FIFOTran
 void ICM42688P::ProcessGyro(const hrt_abstime &timestamp_sample, const FIFOTransferBuffer &buffer,
 			    const uint8_t samples)
 {
-	PX4Gyroscope::FIFOSample gyro;
+	sensor_gyro_fifo_s gyro{};
 	gyro.timestamp_sample = timestamp_sample;
 	gyro.samples = samples;
 	gyro.dt = _fifo_empty_interval_us / _fifo_gyro_samples;
@@ -625,8 +610,8 @@ void ICM42688P::UpdateTemperature()
 
 	const int16_t TEMP_DATA = combine(temperature_buf[1], temperature_buf[2]);
 
-	// Temperature in Degrees Centigrade = (TEMP_DATA / 132.48) + 25
-	const float TEMP_degC = (TEMP_DATA / TEMPERATURE_SENSITIVITY) + ROOM_TEMPERATURE_OFFSET;
+	// Temperature in Degrees Centigrade
+	const float TEMP_degC = (TEMP_DATA / TEMPERATURE_SENSITIVITY) + TEMPERATURE_OFFSET;
 
 	if (PX4_ISFINITE(TEMP_degC)) {
 		_px4_accel.set_temperature(TEMP_degC);
