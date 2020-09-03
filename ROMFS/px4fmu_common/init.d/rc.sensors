@@ -21,6 +21,18 @@ fi
 #                           Begin Optional drivers                            #
 ###############################################################################
 
+# ICS AOA sensor
+if param compare -s SENS_EN_ICS_AOA 1
+then
+	ics_aoa start -X
+fi
+
+# ICS RPM sensor
+if param compare -s SENS_EN_ICS_RPM 1
+then
+	ics_rpm start -X
+fi
+
 if param compare -s SENS_EN_BATT 1
 then
 	batt_smbus start -X

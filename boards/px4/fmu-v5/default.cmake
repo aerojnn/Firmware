@@ -26,6 +26,7 @@ px4_add_board(
 		dshot
 		gps
 		#heater
+		ics # all available ics sensor drivers
 		#imu # all available imu drivers
 		imu/adis16448
 		imu/adis16477
@@ -71,6 +72,7 @@ px4_add_board(
 		events
 		fw_att_control
 		fw_pos_control_l1
+		ics_sensor
 		land_detector
 		landing_target_estimator
 		load_mon

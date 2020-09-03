@@ -20,3 +20,6 @@ ist8310 -I start
 
 # Baro on internal SPI
 ms5611 -s start
+
+#ICS sensor
+ics_sensor start

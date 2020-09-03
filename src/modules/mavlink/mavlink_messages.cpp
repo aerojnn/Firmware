@@ -60,6 +60,8 @@
 #include <systemlib/mavlink_log.h>
 #include <math.h>
 
+#include <v2.0/ics_sensor/mavlink_msg_ics_sensor.h>
+
 #include <uORB/Subscription.hpp>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/actuator_controls.h>
@@ -80,6 +82,7 @@
 #include <uORB/topics/estimator_status.h>
 #include <uORB/topics/geofence_result.h>
 #include <uORB/topics/home_position.h>
+#include <uORB/topics/ics_sensor.h>
 #include <uORB/topics/input_rc.h>
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/mavlink_log.h>
@@ -5358,6 +5361,75 @@ protected:
 	}
 };
 
+class MavlinkStreamICSSensor : public MavlinkStream
+{
+public:
+	const char *get_name() const override
+	{
+		return MavlinkStreamICSSensor::get_name_static();
+	}
+
+	static constexpr const char *get_name_static()
+	{
+		return "ICS_SENSOR";
+	}
+
+	static constexpr uint16_t get_id_static()
+	{
+		return MAVLINK_MSG_ID_ICS_SENSOR;
+	}
+
+	uint16_t get_id() override
+	{
+		return get_id_static();
+	}
+
+	static MavlinkStream *new_instance(Mavlink *mavlink)
+	{
+		return new MavlinkStreamICSSensor(mavlink);
+	}
+
+	unsigned get_size() override
+	{
+		return _ics_sensor_sub.advertised() ? MAVLINK_MSG_ID_ICS_SENSOR_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES : 0;
+	}
+
+private:
+    	uORB::Subscription _ics_sensor_sub{ORB_ID(ics_sensor)};
+
+    	/* do not allow top copying this class */
+    	MavlinkStreamICSSensor(MavlinkStreamICSSensor &) = delete;
+    	MavlinkStreamICSSensor& operator = (const MavlinkStreamICSSensor &) = delete;
+
+protected:
+    	explicit MavlinkStreamICSSensor(Mavlink *mavlink) : MavlinkStream(mavlink)
+    	{}
+
+    	bool send(const hrt_abstime t) override
+    	{
+        	ics_sensor_s ics_sensor;
+
+        	if (_ics_sensor_sub.update(&ics_sensor)) {
+            		mavlink_ics_sensor_t msg{};
+
+			msg.time_usec = ics_sensor.timestamp;
+
+			msg.aoa = ics_sensor.aoa;
+			msg.aos = ics_sensor.aos;
+
+			for(int i = 0; i < 8; i++){
+				msg.rpm[i] = ics_sensor.rpm[i];
+			}
+
+            		mavlink_msg_ics_sensor_send_struct(_mavlink->get_channel(), &msg);
+
+			return true;
+        	}
+
+        	return false;
+    	}
+};
+
 static const StreamListItem streams_list[] = {
 	create_stream_list_item<MavlinkStreamHeartbeat>(),
 	create_stream_list_item<MavlinkStreamStatustext>(),
@@ -5423,7 +5495,8 @@ static const StreamListItem streams_list[] = {
 	create_stream_list_item<MavlinkStreamProtocolVersion>(),
 	create_stream_list_item<MavlinkStreamFlightInformation>(),
 	create_stream_list_item<MavlinkStreamStorageInformation>(),
-	create_stream_list_item<MavlinkStreamRawRpm>()
+	create_stream_list_item<MavlinkStreamRawRpm>(),
+	create_stream_list_item<MavlinkStreamICSSensor>()
 };
 
 const char *get_stream_name(const uint16_t msg_id)
