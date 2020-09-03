@@ -141,6 +141,7 @@
 #include <lib/systemlib/mavlink_log.h>
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionBlocking.hpp>
+#include <uORB/SubscriptionMultiArray.hpp>
 #include <uORB/topics/sensor_accel.h>
 #include <uORB/topics/vehicle_attitude.h>
 
@@ -245,6 +246,62 @@ static calibrate_return accel_calibration_worker(detect_orientation_return orien
 			     detect_orientation_str(orientation));
 
 	read_accelerometer_avg(worker_data->accel_ref, orientation, samples_num);
+
+	// check accel
+	for (unsigned accel_index = 0; accel_index < MAX_ACCEL_SENS; accel_index++) {
+		switch (orientation) {
+		case ORIENTATION_TAIL_DOWN:    // [ g, 0, 0 ]
+			if (worker_data->accel_ref[accel_index][ORIENTATION_TAIL_DOWN][0] < 0.f) {
+				calibration_log_emergency(worker_data->mavlink_log_pub, "[cal] accel %d invalid X-axis, check rotation", accel_index);
+				return calibrate_return_error;
+			}
+
+			break;
+
+		case ORIENTATION_NOSE_DOWN:    // [ -g, 0, 0 ]
+			if (worker_data->accel_ref[accel_index][ORIENTATION_NOSE_DOWN][0] > 0.f) {
+				calibration_log_emergency(worker_data->mavlink_log_pub, "[cal] accel %d invalid X-axis, check rotation", accel_index);
+				return calibrate_return_error;
+			}
+
+			break;
+
+		case ORIENTATION_LEFT:         // [ 0, g, 0 ]
+			if (worker_data->accel_ref[accel_index][ORIENTATION_LEFT][1] < 0.f) {
+				calibration_log_emergency(worker_data->mavlink_log_pub, "[cal] accel %d invalid Y-axis, check rotation", accel_index);
+				return calibrate_return_error;
+			}
+
+			break;
+
+		case ORIENTATION_RIGHT:        // [ 0, -g, 0 ]
+			if (worker_data->accel_ref[accel_index][ORIENTATION_RIGHT][1] > 0.f) {
+				calibration_log_emergency(worker_data->mavlink_log_pub, "[cal] accel %d invalid Y-axis, check rotation", accel_index);
+				return calibrate_return_error;
+			}
+
+			break;
+
+		case ORIENTATION_UPSIDE_DOWN:  // [ 0, 0, g ]
+			if (worker_data->accel_ref[accel_index][ORIENTATION_UPSIDE_DOWN][2] < 0.f) {
+				calibration_log_emergency(worker_data->mavlink_log_pub, "[cal] accel %d invalid Z-axis, check rotation", accel_index);
+				return calibrate_return_error;
+			}
+
+			break;
+
+		case ORIENTATION_RIGHTSIDE_UP: // [ 0, 0, -g ]
+			if (worker_data->accel_ref[accel_index][ORIENTATION_RIGHTSIDE_UP][2] > 0.f) {
+				calibration_log_emergency(worker_data->mavlink_log_pub, "[cal] accel %d invalid Z-axis, check rotation", accel_index);
+				return calibrate_return_error;
+			}
+
+			break;
+
+		default:
+			break;
+		}
+	}
 
 	calibration_log_info(worker_data->mavlink_log_pub, "[cal] %s side result: [%.3f %.3f %.3f]",
 			     detect_orientation_str(orientation),
@@ -381,11 +438,7 @@ int do_accel_calibration_quick(orb_advert_t *mavlink_log_pub)
 	sensor_correction_s sensor_correction{};
 	sensor_correction_sub.copy(&sensor_correction);
 
-	uORB::Subscription accel_sub[MAX_ACCEL_SENS] {
-		{ORB_ID(sensor_accel), 0},
-		{ORB_ID(sensor_accel), 1},
-		{ORB_ID(sensor_accel), 2},
-	};
+	uORB::SubscriptionMultiArray<sensor_accel_s, MAX_ACCEL_SENS> accel_subs{ORB_ID::sensor_accel};
 
 	/* use the first sensor to pace the readout, but do per-sensor counts */
 	for (unsigned accel_index = 0; accel_index < MAX_ACCEL_SENS; accel_index++) {
@@ -393,7 +446,7 @@ int do_accel_calibration_quick(orb_advert_t *mavlink_log_pub)
 		Vector3f accel_sum{};
 		unsigned count = 0;
 
-		while (accel_sub[accel_index].update(&arp)) {
+		while (accel_subs[accel_index].update(&arp)) {
 			// fetch optional thermal offset corrections in sensor/board frame
 			if ((arp.timestamp > 0) && (arp.device_id != 0)) {
 				Vector3f offset{0, 0, 0};
