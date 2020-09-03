@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2019 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2020 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -30,15 +30,16 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
+
 px4_add_module(
-	MODULE drivers__magnetometer__qmc5883
-	MAIN qmc5883
+	MODULE drivers__magnetometer__isentek__ist8310
+	MAIN ist8310
 	COMPILE_FLAGS
 	SRCS
-		QMC5883_I2C.cpp
-		QMC5883.cpp
-		QMC5883.hpp
-		qmc5883_main.cpp
+		IST8310.cpp
+		IST8310.hpp
+		ist8310_main.cpp
+		iSentek_IST8310_registers.hpp
 	DEPENDS
 		drivers_magnetometer
 		px4_work_queue
