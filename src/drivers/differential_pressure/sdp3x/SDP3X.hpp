@@ -35,6 +35,7 @@
  * @file SDP3X.hpp
  *
  * Driver for Sensirion SDP3X Differential Pressure Sensor
+ * james
  *
  * Datasheet: https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/8_Differential_Pressure/Sensirion_Differential_Pressure_Sensors_SDP3x_Digital_Datasheet_V0.8.pdf
  */
