@@ -65,8 +65,13 @@ MavlinkCommandSender::~MavlinkCommandSender()
 	px4_sem_destroy(&_lock);
 }
 
-int MavlinkCommandSender::handle_vehicle_command(const struct vehicle_command_s &command, mavlink_channel_t channel)
+int MavlinkCommandSender::handle_vehicle_command(const vehicle_command_s &command, mavlink_channel_t channel)
 {
+	// commands > uint16 are PX4 internal only
+	if (command.command >= vehicle_command_s::VEHICLE_CMD_PX4_INTERNAL_START) {
+		return 0;
+	}
+
 	lock();
 	CMD_DEBUG("new command: %d (channel: %d)", command.command, channel);
 
@@ -87,7 +92,7 @@ int MavlinkCommandSender::handle_vehicle_command(const struct vehicle_command_s 
 	bool already_existing = false;
 	_commands.reset_to_start();
 
-	while (command_item_t *item = _commands.get_next()) {
+	while (command_item_s *item = _commands.get_next()) {
 		if (item->timestamp_us == command.timestamp) {
 
 			// We should activate the channel by setting num_sent_per_channel from -1 to 0.
@@ -99,7 +104,7 @@ int MavlinkCommandSender::handle_vehicle_command(const struct vehicle_command_s 
 
 	if (!already_existing) {
 
-		command_item_t new_item;
+		command_item_s new_item;
 		new_item.command = msg;
 		new_item.timestamp_us = command.timestamp;
 		new_item.num_sent_per_channel[channel] = 0;
@@ -120,7 +125,7 @@ void MavlinkCommandSender::handle_mavlink_command_ack(const mavlink_command_ack_
 
 	_commands.reset_to_start();
 
-	while (command_item_t *item = _commands.get_next()) {
+	while (command_item_s *item = _commands.get_next()) {
 		// Check if the incoming ack matches any of the commands that we have sent.
 		if (item->command.command == ack.command &&
 		    (item->command.target_system == 0 || from_sysid == item->command.target_system) &&
@@ -140,7 +145,7 @@ void MavlinkCommandSender::check_timeout(mavlink_channel_t channel)
 
 	_commands.reset_to_start();
 
-	while (command_item_t *item = _commands.get_next()) {
+	while (command_item_s *item = _commands.get_next()) {
 		if (hrt_elapsed_time(&item->last_time_sent_us) <= TIMEOUT_US) {
 			// We keep waiting for the timeout.
 			continue;
@@ -151,7 +156,7 @@ void MavlinkCommandSender::check_timeout(mavlink_channel_t channel)
 		// as some channels might be lagging behind and will end up putting the same command into the buffer.
 		bool dropped_command = false;
 
-		for (unsigned i = 0; i < MAX_MAVLINK_CHANNEL; ++i) {
+		for (unsigned i = 0; i < MAVLINK_COMM_NUM_BUFFERS; ++i) {
 			if (item->num_sent_per_channel[i] == -2) {
 				_commands.drop_current();
 				dropped_command = true;
@@ -176,7 +181,7 @@ void MavlinkCommandSender::check_timeout(mavlink_channel_t channel)
 		int8_t max_sent = 0;
 		int8_t min_sent = INT8_MAX;
 
-		for (unsigned i = 0; i < MAX_MAVLINK_CHANNEL; ++i) {
+		for (unsigned i = 0; i < MAVLINK_COMM_NUM_BUFFERS; ++i) {
 			if (item->num_sent_per_channel[i] > max_sent) {
 				max_sent = item->num_sent_per_channel[i];
 			}

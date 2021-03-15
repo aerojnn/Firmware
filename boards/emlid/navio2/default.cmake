@@ -8,10 +8,11 @@ px4_add_board(
 	LABEL default
 	PLATFORM posix
 	ARCHITECTURE cortex-a53
+	ROMFSROOT px4fmu_common
 	TOOLCHAIN arm-linux-gnueabihf
 	TESTING
 	DRIVERS
-		adc
+		adc/board_adc
 		#barometer # all available barometer drivers
 		barometer/ms5611
 		batt_smbus
@@ -21,6 +22,7 @@ px4_add_board(
 		distance_sensor # all available distance sensor drivers
 		gps
 		#imu # all available imu drivers
+		imu/analog_devices/adis16448
 		imu/invensense/mpu9250
 		imu/st/lsm9ds1
 		linux_pwm_out
@@ -39,8 +41,10 @@ px4_add_board(
 		dataman
 		ekf2
 		events
+		flight_mode_manager
 		fw_att_control
 		fw_pos_control_l1
+		gyro_fft
 		land_detector
 		landing_target_estimator
 		load_mon
@@ -67,19 +71,23 @@ px4_add_board(
 		led_control
 		mixer
 		motor_ramp
+		motor_test
 		param
 		perf
 		pwm
 		sd_bench
+		system_time
 		shutdown
 		tests # tests and test runner
 		#top
 		topic_listener
 		tune_control
+		uorb
 		ver
 		work_queue
 	EXAMPLES
 		dyn_hello # dynamically loading modules example
+		fake_gps
 		fixedwing_control # Tutorial code from https://px4.io/dev/example_fixedwing_control
 		hello
 		#hwtest # Hardware test

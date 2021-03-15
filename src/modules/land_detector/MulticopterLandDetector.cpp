@@ -108,10 +108,15 @@ void MulticopterLandDetector::_update_topics()
 		if (_hover_thrust_estimate_sub.update(&hte)) {
 			if (hte.valid) {
 				_params.hoverThrottle = hte.hover_thrust;
+				_hover_thrust_estimate_last_valid = hte.timestamp;
 			}
-
-			_hover_thrust_estimate_valid = hte.valid;
 		}
+	}
+
+	takeoff_status_s takeoff_status;
+
+	if (_takeoff_status_sub.update(&takeoff_status)) {
+		_takeoff_state = takeoff_status.takeoff_state;
 	}
 }
 
@@ -153,7 +158,9 @@ bool MulticopterLandDetector::_get_freefall_state()
 
 bool MulticopterLandDetector::_get_ground_contact_state()
 {
-	const bool lpos_available = (hrt_elapsed_time(&_vehicle_local_position.timestamp) < 1_s);
+	const hrt_abstime time_now_us = hrt_absolute_time();
+
+	const bool lpos_available = ((time_now_us - _vehicle_local_position.timestamp) < 1_s);
 
 	// land speed threshold, 90% of MPC_LAND_SPEED
 	const float land_speed_threshold = 0.9f * math::max(_params.landSpeed, 0.1f);
@@ -166,7 +173,7 @@ bool MulticopterLandDetector::_get_ground_contact_state()
 		// an accurate in-air indication.
 		float max_climb_rate = math::min(land_speed_threshold * 0.5f, _param_lndmc_z_vel_max.get());
 
-		if (hrt_elapsed_time(&_landed_time) < LAND_DETECTOR_LAND_PHASE_TIME_US) {
+		if ((time_now_us - _landed_time) < LAND_DETECTOR_LAND_PHASE_TIME_US) {
 			// Widen acceptance thresholds for landed state right after arming
 			// so that motor spool-up and other effects do not trigger false negatives.
 			max_climb_rate = _param_lndmc_z_vel_max.get() * 2.5f;
@@ -185,6 +192,19 @@ bool MulticopterLandDetector::_get_ground_contact_state()
 		_horizontal_movement = false; // not known
 	}
 
+	if (lpos_available && _vehicle_local_position.dist_bottom_valid) {
+		_below_gnd_effect_hgt = _vehicle_local_position.dist_bottom < _get_gnd_effect_altitude();
+
+	} else {
+		_below_gnd_effect_hgt = false;
+	}
+
+	const bool hover_thrust_estimate_valid = ((time_now_us - _hover_thrust_estimate_last_valid) < 1_s);
+
+	if (!_in_descend || hover_thrust_estimate_valid) {
+		// continue using valid hover thrust if it became invalid during descent
+		_hover_thrust_estimate_valid = hover_thrust_estimate_valid;
+	}
 
 	// low thrust: 30% of throttle range between min and hover, relaxed to 60% if hover thrust estimate available
 	const float thr_pct_hover = _hover_thrust_estimate_valid ? 0.6f : 0.3f;
@@ -234,6 +254,7 @@ bool MulticopterLandDetector::_get_maybe_landed_state()
 		return true;
 	}
 
+	const hrt_abstime time_now_us = hrt_absolute_time();
 
 	// minimal throttle: initially 10% of throttle range between min and hover
 	float sys_min_throttle = _params.minThrottle + (_params.hoverThrottle - _params.minThrottle) * 0.1f;
@@ -246,7 +267,7 @@ bool MulticopterLandDetector::_get_maybe_landed_state()
 	// Check if thrust output is less than the minimum throttle.
 	if (_actuator_controls_throttle <= sys_min_throttle) {
 		if (_min_thrust_start == 0) {
-			_min_thrust_start = hrt_absolute_time();
+			_min_thrust_start = time_now_us;
 		}
 
 	} else {
@@ -263,7 +284,7 @@ bool MulticopterLandDetector::_get_maybe_landed_state()
 	float landThresholdFactor = 1.f;
 
 	// Widen acceptance thresholds for landed state right after landed
-	if (hrt_elapsed_time(&_landed_time) < LAND_DETECTOR_LAND_PHASE_TIME_US) {
+	if ((time_now_us - _landed_time) < LAND_DETECTOR_LAND_PHASE_TIME_US) {
 		landThresholdFactor = 2.5f;
 	}
 
@@ -278,12 +299,12 @@ bool MulticopterLandDetector::_get_maybe_landed_state()
 	}
 
 	// If vertical velocity is available: ground contact, no thrust, no movement -> landed
-	if ((hrt_elapsed_time(&_vehicle_local_position.timestamp) < 1_s) && _vehicle_local_position.v_z_valid) {
+	if (((time_now_us - _vehicle_local_position.timestamp) < 1_s) && _vehicle_local_position.v_z_valid) {
 		return _ground_contact_hysteresis.get_state();
 	}
 
 	// Otherwise, landed if the system has minimum thrust (manual or in failsafe) and no rotation for at least 8 seconds
-	return (_min_thrust_start > 0) && (hrt_elapsed_time(&_min_thrust_start) > 8_s);
+	return (_min_thrust_start > 0) && ((time_now_us - _min_thrust_start) > 8_s);
 }
 
 bool MulticopterLandDetector::_get_landed_state()
@@ -316,9 +337,22 @@ float MulticopterLandDetector::_get_max_altitude()
 	}
 }
 
+float MulticopterLandDetector::_get_gnd_effect_altitude()
+{
+	if (_param_lndmc_alt_gnd_effect.get() < 0.0f) {
+		return INFINITY;
+
+	} else {
+		return _param_lndmc_alt_gnd_effect.get();
+	}
+}
+
 bool MulticopterLandDetector::_get_ground_effect_state()
 {
-	return _in_descend && !_horizontal_movement;
+
+	return (_in_descend && !_horizontal_movement) ||
+	       (_below_gnd_effect_hgt && _takeoff_state == takeoff_status_s::TAKEOFF_STATE_FLIGHT) ||
+	       _takeoff_state == takeoff_status_s::TAKEOFF_STATE_RAMPUP;
 }
 
 } // namespace land_detector

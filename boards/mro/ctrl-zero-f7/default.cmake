@@ -17,7 +17,7 @@ px4_add_board(
 		#CONSOLE:/dev/ttyS4
 		#FRSKY:/dev/ttyS5
 	DRIVERS
-		adc
+		adc/board_adc
 		#barometer # all available barometer drivers
 		barometer/dps310
 		batt_smbus
@@ -37,7 +37,6 @@ px4_add_board(
 		lights/rgbled
 		lights/rgbled_ncp5623c
 		magnetometer # all available magnetometer drivers
-		mkblctrl
 		#optical_flow # all available optical flow drivers
 		#osd
 		pca9685
@@ -49,7 +48,6 @@ px4_add_board(
 		rc_input
 		roboclaw
 		safety_button
-		tap_esc
 		telemetry # all available telemetry drivers
 		test_ppm
 		tone_alarm
@@ -63,8 +61,10 @@ px4_add_board(
 		dataman
 		ekf2
 		events
+		flight_mode_manager
 		fw_att_control
 		fw_pos_control_l1
+		gyro_fft
 		land_detector
 		landing_target_estimator
 		load_mon
@@ -92,6 +92,7 @@ px4_add_board(
 		hardfault_log
 		i2cdetect
 		led_control
+		mft
 		mixer
 		motor_ramp
 		motor_test
@@ -103,14 +104,17 @@ px4_add_board(
 		reboot
 		reflect
 		sd_bench
+		system_time
 		tests # tests and test runner
 		top
 		topic_listener
 		tune_control
+		uorb
 		usb_connected
 		ver
 		work_queue
 	EXAMPLES
+		fake_gps
 		fixedwing_control # Tutorial code from https://px4.io/dev/example_fixedwing_control
 		hello
 		hwtest # Hardware test

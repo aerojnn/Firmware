@@ -57,7 +57,7 @@
 #include <px4_platform_common/shutdown.h>
 
 #include <perf/perf_counter.h>
-#include <systemlib/uthash/utarray.h>
+#include "uthash/utarray.h"
 
 #include "uORB/uORB.h"
 #include "uORB/topics/parameter_update.h"
@@ -991,7 +991,7 @@ param_save_default()
 		goto do_exit;
 	}
 
-	res = param_export(fd, false);
+	res = param_export(fd, false, nullptr);
 
 	if (res != OK) {
 		PX4_ERR("failed to write parameters to file: %s", filename);
@@ -1073,7 +1073,7 @@ param_load_default_no_notify()
 		return 1;
 	}
 
-	int result = param_import(fd_load);
+	int result = param_import(fd_load, true);
 
 	close(fd_load);
 
@@ -1088,7 +1088,7 @@ param_load_default_no_notify()
 }
 
 int
-param_export(int fd, bool only_unsaved)
+param_export(int fd, bool only_unsaved, param_filter_func filter)
 {
 	perf_begin(param_export_perf);
 
@@ -1126,6 +1126,10 @@ param_export(int fd, bool only_unsaved)
 		 * one hasn't, then skip it
 		 */
 		if (only_unsaved && !s->unsaved) {
+			continue;
+		}
+
+		if (filter && !filter(s->param)) {
 			continue;
 		}
 
@@ -1201,7 +1205,6 @@ param_import_callback(bson_decoder_t decoder, void *priv, bson_node_t node)
 {
 	float f = 0.0f;
 	int32_t i = 0;
-	void *tmp = nullptr;
 	void *v = nullptr;
 	int result = -1;
 	param_import_state *state = (param_import_state *)priv;
@@ -1259,43 +1262,6 @@ param_import_callback(bson_decoder_t decoder, void *priv, bson_node_t node)
 		}
 		break;
 
-	case BSON_BINDATA: {
-			if (node->subtype != BSON_BIN_BINARY) {
-				PX4_WARN("unexpected subtype for %s", node->name);
-				result = 1; // just skip this entry
-				goto out;
-			}
-
-			if (bson_decoder_data_pending(decoder) != param_size(param)) {
-				PX4_WARN("bad size for '%s'", node->name);
-				result = 1; // just skip this entry
-				goto out;
-			}
-
-			/* XXX check actual file data size? */
-			size_t psize = param_size(param);
-
-			if (psize > 0) {
-				tmp = malloc(psize);
-
-			} else {
-				tmp = nullptr;
-			}
-
-			if (tmp == nullptr) {
-				PX4_ERR("failed allocating for '%s'", node->name);
-				goto out;
-			}
-
-			if (bson_decoder_copy_data(decoder, tmp)) {
-				PX4_ERR("failed copying data for '%s'", node->name);
-				goto out;
-			}
-
-			v = tmp;
-		}
-		break;
-
 	default:
 		PX4_DEBUG("unrecognised node type");
 		goto out;
@@ -1306,20 +1272,10 @@ param_import_callback(bson_decoder_t decoder, void *priv, bson_node_t node)
 		goto out;
 	}
 
-	if (tmp != nullptr) {
-		free(tmp);
-		tmp = nullptr;
-	}
-
 	/* don't return zero, that means EOF */
 	result = 1;
 
 out:
-
-	if (tmp != nullptr) {
-		free(tmp);
-	}
-
 	return result;
 }
 
@@ -1347,10 +1303,10 @@ param_import_internal(int fd, bool mark_saved)
 }
 
 int
-param_import(int fd)
+param_import(int fd, bool mark_saved)
 {
 #if !defined(FLASH_BASED_PARAMS)
-	return param_import_internal(fd, false);
+	return param_import_internal(fd, mark_saved);
 #else
 	(void)fd; // unused
 	// no need for locking here

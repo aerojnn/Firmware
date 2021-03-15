@@ -16,7 +16,7 @@ px4_add_board(
 		RC:/dev/ttyS4 # UART6
 		# /dev/ttyS5: UART7 (ESC telemetry)
 	DRIVERS
-		adc
+		adc/board_adc
 		barometer/bmp280
 		dshot
 		gps
@@ -37,6 +37,8 @@ px4_add_board(
 		dataman
 		#ekf2
 		events
+		flight_mode_manager
+		#gyro_fft
 		land_detector
 		load_mon
 		#local_position_estimator
@@ -71,6 +73,7 @@ px4_add_board(
 		top
 		topic_listener
 		tune_control
+		uorb
 		usb_connected
 		ver
 		work_queue

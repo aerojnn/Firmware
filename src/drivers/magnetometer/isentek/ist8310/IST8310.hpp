@@ -53,7 +53,7 @@ using namespace iSentek_IST8310;
 class IST8310 : public device::I2C, public I2CSPIDriver<IST8310>
 {
 public:
-	IST8310(I2CSPIBusOption bus_option, int bus, int bus_frequency, enum Rotation rotation = ROTATION_NONE);
+	IST8310(I2CSPIBusOption bus_option, int bus, uint8_t addr, int bus_frequency, enum Rotation rotation = ROTATION_NONE);
 	~IST8310() override;
 
 	static I2CSPIDriverBase *instantiate(const BusCLIArguments &cli, const BusInstanceIterator &iterator,
@@ -109,7 +109,7 @@ private:
 		// Register               | Set bits, Clear bits
 		{ Register::CNTL2,        0, CNTL2_BIT::SRST },
 		{ Register::CNTL3,        CNTL3_BIT::Z_16BIT | CNTL3_BIT::Y_16BIT | CNTL3_BIT::X_16BIT, 0 },
-		{ Register::AVGCNTL,      AVGCNTL_BIT::Y_16TIMES | AVGCNTL_BIT::XZ_16TIMES, 0 },
+		{ Register::AVGCNTL,      AVGCNTL_BIT::Y_16TIMES_SET | AVGCNTL_BIT::XZ_16TIMES_SET, AVGCNTL_BIT::Y_16TIMES_CLEAR | AVGCNTL_BIT::XZ_16TIMES_CLEAR },
 		{ Register::PDCNTL,       PDCNTL_BIT::PULSE_NORMAL, 0 },
 	};
 };

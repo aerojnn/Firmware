@@ -262,14 +262,18 @@ MissionFeasibilityChecker::checkMissionItemValidity(const mission_s &mission)
 		    missionitem.nav_cmd != NAV_CMD_DO_CONTROL_VIDEO &&
 		    missionitem.nav_cmd != NAV_CMD_DO_MOUNT_CONFIGURE &&
 		    missionitem.nav_cmd != NAV_CMD_DO_MOUNT_CONTROL &&
+		    missionitem.nav_cmd != NAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW &&
+		    missionitem.nav_cmd != NAV_CMD_DO_GIMBAL_MANAGER_CONFIGURE &&
 		    missionitem.nav_cmd != NAV_CMD_DO_SET_ROI &&
 		    missionitem.nav_cmd != NAV_CMD_DO_SET_ROI_LOCATION &&
 		    missionitem.nav_cmd != NAV_CMD_DO_SET_ROI_WPNEXT_OFFSET &&
 		    missionitem.nav_cmd != NAV_CMD_DO_SET_ROI_NONE &&
 		    missionitem.nav_cmd != NAV_CMD_DO_SET_CAM_TRIGG_DIST &&
+		    missionitem.nav_cmd != NAV_CMD_OBLIQUE_SURVEY &&
 		    missionitem.nav_cmd != NAV_CMD_DO_SET_CAM_TRIGG_INTERVAL &&
 		    missionitem.nav_cmd != NAV_CMD_SET_CAMERA_MODE &&
 		    missionitem.nav_cmd != NAV_CMD_SET_CAMERA_ZOOM &&
+		    missionitem.nav_cmd != NAV_CMD_SET_CAMERA_FOCUS &&
 		    missionitem.nav_cmd != NAV_CMD_DO_VTOL_TRANSITION) {
 
 			mavlink_log_critical(_navigator->get_mavlink_log_pub(), "Mission rejected: item %i: unsupported cmd: %d", (int)(i + 1),
@@ -388,14 +392,18 @@ MissionFeasibilityChecker::checkTakeoff(const mission_s &mission, float home_alt
 					  missionitem.nav_cmd != NAV_CMD_DO_CONTROL_VIDEO &&
 					  missionitem.nav_cmd != NAV_CMD_DO_MOUNT_CONFIGURE &&
 					  missionitem.nav_cmd != NAV_CMD_DO_MOUNT_CONTROL &&
+					  missionitem.nav_cmd != NAV_CMD_DO_GIMBAL_MANAGER_PITCHYAW &&
+					  missionitem.nav_cmd != NAV_CMD_DO_GIMBAL_MANAGER_CONFIGURE &&
 					  missionitem.nav_cmd != NAV_CMD_DO_SET_ROI &&
 					  missionitem.nav_cmd != NAV_CMD_DO_SET_ROI_LOCATION &&
 					  missionitem.nav_cmd != NAV_CMD_DO_SET_ROI_WPNEXT_OFFSET &&
 					  missionitem.nav_cmd != NAV_CMD_DO_SET_ROI_NONE &&
 					  missionitem.nav_cmd != NAV_CMD_DO_SET_CAM_TRIGG_DIST &&
+					  missionitem.nav_cmd != NAV_CMD_OBLIQUE_SURVEY &&
 					  missionitem.nav_cmd != NAV_CMD_DO_SET_CAM_TRIGG_INTERVAL &&
 					  missionitem.nav_cmd != NAV_CMD_SET_CAMERA_MODE &&
 					  missionitem.nav_cmd != NAV_CMD_SET_CAMERA_ZOOM &&
+					  missionitem.nav_cmd != NAV_CMD_SET_CAMERA_FOCUS &&
 					  missionitem.nav_cmd != NAV_CMD_DO_VTOL_TRANSITION);
 		}
 	}

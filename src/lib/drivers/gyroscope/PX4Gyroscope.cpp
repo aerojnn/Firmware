@@ -35,6 +35,7 @@
 #include "PX4Gyroscope.hpp"
 
 #include <lib/drivers/device/Device.hpp>
+#include <lib/parameters/param.h>
 
 using namespace time_literals;
 using matrix::Vector3f;
@@ -51,16 +52,13 @@ static constexpr int32_t sum(const int16_t samples[16], uint8_t len)
 }
 
 PX4Gyroscope::PX4Gyroscope(uint32_t device_id, enum Rotation rotation) :
-	ModuleParams(nullptr),
-	_sensor_pub{ORB_ID(sensor_gyro)},
-	_sensor_fifo_pub{ORB_ID(sensor_gyro_fifo)},
 	_device_id{device_id},
 	_rotation{rotation}
 {
 	// advertise immediately to keep instance numbering in sync
 	_sensor_pub.advertise();
 
-	updateParams();
+	param_get(param_find("IMU_GYRO_RATEMAX"), &_imu_gyro_rate_max);
 }
 
 PX4Gyroscope::~PX4Gyroscope()
@@ -116,11 +114,11 @@ void PX4Gyroscope::updateFIFO(sensor_gyro_fifo_s &sample)
 		const float z = integral(2) / (float)N;
 
 		// publish
-		Publish(sample.timestamp_sample, x, y, z);
+		Publish(sample.timestamp_sample, x, y, z, N);
 	}
 }
 
-void PX4Gyroscope::Publish(const hrt_abstime &timestamp_sample, float x, float y, float z)
+void PX4Gyroscope::Publish(const hrt_abstime &timestamp_sample, float x, float y, float z, uint8_t samples)
 {
 	// Apply rotation (before scaling)
 	rotate_3f(_rotation, x, y, z);
@@ -134,6 +132,7 @@ void PX4Gyroscope::Publish(const hrt_abstime &timestamp_sample, float x, float y
 	report.x = x * _scale;
 	report.y = y * _scale;
 	report.z = z * _scale;
+	report.samples = samples;
 	report.timestamp = hrt_absolute_time();
 
 	_sensor_pub.publish(report);

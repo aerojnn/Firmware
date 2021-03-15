@@ -1,0 +1,8 @@
+#!/bin/sh
+#
+# board specific defaults
+#------------------------------------------------------------------------------
+
+neopixel start
+safety_button start
+tone_alarm start

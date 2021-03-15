@@ -223,9 +223,6 @@ class Graph(object):
     ('listener', r'.*', None, r'^(id)$'),
     ('logger', r'.*', None, r'^(topic|sub\.metadata|_polling_topic_meta)$'),
 
-    ('tap_esc', r'.*', r'\b_control_topics\[[0-9]\]=([^,)]+)', r'^_control_topics\[i\]$'),
-    ('snapdragon_pwm_out', r'.*', r'\b_controls_topics\[[0-9]\]=([^,)]+)', r'^_controls_topics\[i\]$'),
-    ('linux_pwm_out', r'.*', r'\b_controls_topics\[[0-9]\]=([^,)]+)', r'^_controls_topics\[i\]$'),
     ]
         special_cases_sub = [(a, re.compile(b), re.compile(c) if c is not None else None, re.compile(d))
                                    for a,b,c,d in special_cases_sub]
@@ -238,7 +235,7 @@ class Graph(object):
         special_cases_pub = [
     ('replay', r'Replay\.cpp$', None, r'^sub\.orb_meta$'),
 
-    ('uavcan', r'sensors/.*\.cpp$', r'\bUavcanCDevSensorBridgeBase\([^{]*DEVICE_PATH,([^,)]+)', r'^_orb_topic$'),
+    ('uavcan', r'sensors/.*\.cpp$', None, r'^_orb_topic$'),
     ]
         special_cases_pub = [(a, re.compile(b), re.compile(c) if c is not None else None, re.compile(d))
                                    for a,b,c,d in special_cases_pub]
